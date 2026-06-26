@@ -5,141 +5,502 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PDF to Image Converter</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+
+
 <style>
-    .pdf-page-container {
-        margin-bottom: 20px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        width: 19%; /* Adjust the width to fit five pages in a row */
-        margin-right: 1%; /* Add a small margin between pages */
-    }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  .win {
+    font-family: var(--font-sans, system-ui);
+    background: var(--surface-1);
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 600px;
+  }
+  .titlebar {
+    background: var(--surface-2);
+    border-bottom: 0.5px solid var(--border);
+    padding: 0 16px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .titlebar-left { display: flex; align-items: center; gap: 10px; }
+  .titlebar-dots { display: flex; gap: 6px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot-r { background: #ff5f57; }
+  .dot-y { background: #febc2e; }
+  .dot-g { background: #28c840; }
+  .titlebar-title { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+  .titlebar-badge {
+    font-size: 11px; padding: 2px 9px; border-radius: 20px;
+    background: var(--bg-accent); color: var(--text-accent); font-weight: 500;
+  }
+  .layout { display: flex; flex: 1; overflow: hidden; }
+  .sidebar {
+    width: 210px; flex-shrink: 0;
+    background: var(--surface-2);
+    border-right: 0.5px solid var(--border);
+    display: flex; flex-direction: column;
+    padding: 14px 12px; gap: 18px;
+  }
+  .sidebar-label {
+    font-size: 10px; font-weight: 500; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-muted); padding: 0 2px;
+    margin-bottom: 4px;
+  }
+  .upload-btn {
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    padding: 9px 12px; border-radius: var(--radius);
+    border: 1.5px dashed var(--border-strong);
+    background: transparent; color: var(--text-secondary);
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    transition: all 0.15s; position: relative; width: 100%;
+  }
+  .upload-btn:hover { border-color: var(--border-accent); color: var(--text-accent); background: var(--bg-accent); }
+  .upload-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+  .ctrl-row { display: flex; flex-direction: column; gap: 4px; }
+  .ctrl-row label { font-size: 11px; color: var(--text-secondary); padding: 0 2px; }
+  .ctrl-row select {
+    border: 0.5px solid var(--border-strong); border-radius: var(--radius);
+    padding: 7px 8px; font-size: 12px;
+    background: var(--surface-1); color: var(--text-primary);
+    cursor: pointer; width: 100%;
+  }
+  .info-box {
+    background: var(--surface-1); border: 0.5px solid var(--border);
+    border-radius: var(--radius); padding: 9px 10px;
+    display: none; flex-direction: column; gap: 3px;
+  }
+  .info-box.show { display: flex; }
+  .info-name { font-size: 11px; font-weight: 500; color: var(--text-primary); word-break: break-all; }
+  .info-meta { font-size: 11px; color: var(--text-muted); }
 
-    .pdf-page {
-        max-width: 100%; /* Adjust the maximum width of the page */
-        height: 200px; /* Adjust the height of the page */
-        display: block;
-        margin-bottom: 10px;
-        border: 1px solid #ccc;
-    }
+  /* resolution indicator */
+  .res-indicator {
+    display: none; background: var(--bg-success); border: 0.5px solid var(--border-success);
+    border-radius: var(--radius); padding: 7px 10px; flex-direction: column; gap: 3px;
+  }
+  .res-indicator.show { display: flex; }
+  .res-title { font-size: 10px; font-weight: 500; color: var(--text-success); text-transform: uppercase; letter-spacing: 0.06em; }
+  .res-value { font-size: 12px; font-weight: 500; color: var(--text-success); }
+  .res-note { font-size: 10px; color: var(--text-success); opacity: 0.8; }
 
-    .download-btn {
-        display: block;
-        width: 100%;
-    }
+  .prog-wrap { display: none; flex-direction: column; gap: 5px; }
+  .prog-wrap.show { display: flex; }
+  .prog-track { height: 4px; border-radius: 20px; background: var(--border); overflow: hidden; }
+  .prog-fill { height: 100%; border-radius: 20px; background: var(--fill-accent,#378add); width: 0; transition: width 0.15s; }
+  .prog-text { font-size: 11px; color: var(--text-secondary); }
 
-    .form-control {
-        margin-left: 30%;
-        width: 40%;
-    }
+  .dl-all-btn {
+    display: none; align-items: center; justify-content: center; gap: 6px;
+    padding: 9px 12px; border-radius: var(--radius);
+    border: 0.5px solid var(--border-accent);
+    background: var(--bg-accent); color: var(--text-accent);
+    font-size: 12px; font-weight: 500; cursor: pointer;
+    transition: all 0.15s; width: 100%;
+  }
+  .dl-all-btn:hover { background: var(--fill-accent); color: #fff; border-color: var(--fill-accent); }
+  .dl-all-btn.show { display: flex; }
+  .dl-all-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .warn-box {
+    background: var(--bg-warning); border: 0.5px solid var(--border-warning);
+    border-radius: var(--radius); padding: 8px 10px;
+    font-size: 11px; color: var(--text-warning); display: none; line-height: 1.5;
+  }
+  .warn-box.show { display: block; }
+
+  .sidebar-spacer { flex: 1; }
+  .sidebar-footer { font-size: 10px; color: var(--text-muted); text-align: center; line-height: 1.6; }
+
+  .main { flex: 1; overflow-y: auto; background: var(--surface-0); padding: 16px; display: flex; flex-direction: column; }
+  .empty-state {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 10px; text-align: center; color: var(--text-muted); padding: 40px;
+  }
+  .empty-state i { font-size: 44px; }
+  .empty-state h3 { font-size: 15px; font-weight: 500; color: var(--text-secondary); }
+  .empty-state p { font-size: 12px; line-height: 1.6; }
+
+  .pages-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+  }
+  .page-card {
+    background: var(--surface-2); border: 0.5px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+    display: flex; flex-direction: column;
+    transition: border-color 0.15s, transform 0.1s; cursor: pointer;
+  }
+  .page-card:hover { border-color: var(--border-accent); transform: translateY(-1px); }
+  .page-thumb-wrap { width: 100%; aspect-ratio: 3/4; background: var(--surface-1); overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative; }
+  .page-thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .page-spinner {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: var(--surface-1); font-size: 20px; color: var(--text-muted);
+  }
+  .page-footer { padding: 6px 8px; border-top: 0.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .page-num { font-size: 11px; color: var(--text-secondary); font-weight: 500; }
+  .dl-btn {
+    font-size: 11px; padding: 3px 7px; border-radius: var(--radius);
+    border: 0.5px solid var(--border); background: var(--surface-1);
+    color: var(--text-secondary); cursor: pointer;
+    display: flex; align-items: center; gap: 3px; transition: all 0.1s;
+  }
+  .dl-btn:hover { border-color: var(--border-accent); color: var(--text-accent); background: var(--bg-accent); }
+  .dl-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 999; display: none; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { background: var(--surface-2); border-radius: 12px; padding: 12px; position: relative; }
+  .modal-close { position: absolute; top: -10px; right: -10px; width: 26px; height: 26px; border-radius: 50%; background: var(--surface-3); border: 0.5px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; color: var(--text-secondary); }
+  .modal-img { max-width: 80vw; max-height: 80vh; display: block; border-radius: 6px; }
+  .modal-info { font-size: 11px; color: var(--text-muted); margin-top: 8px; text-align: center; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinning { animation: spin 1s linear infinite; display: inline-block; }
 </style>
 
-</head>
+<h2 class="sr-only">PDF to High-Resolution Image Converter</h2>
 
-<body>
-
-<center><h2>Download PDF page as an Image</h2></center>
-    
-<div class="container">
-    <div class="form-group">
-        <input type="file" class="form-control" id="fileInput" accept=".pdf">
+<div class="win">
+  <div class="titlebar">
+    <div class="titlebar-left">
+      <div class="titlebar-dots">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+      </div>
+      <span class="titlebar-title">PDF → Image Converter</span>
     </div>
-    <div id="pdfPages" style="display: flex; flex-wrap: wrap; justify-content: center;"></div>
+    <span class="titlebar-badge" id="titleBadge">No file loaded</span>
+  </div>
+
+  <div class="layout">
+    <div class="sidebar">
+      <div>
+        <div class="sidebar-label">Source</div>
+        <button class="upload-btn">
+          <input type="file" id="fileInput" accept=".pdf">
+          <i class="ti ti-upload" aria-hidden="true"></i> Choose PDF
+        </button>
+        <div style="margin-top:8px;">
+          <div class="info-box" id="infoBox">
+            <div class="info-name" id="infoName">—</div>
+            <div class="info-meta" id="infoMeta">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="sidebar-label">Export settings</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div class="ctrl-row">
+            <label>Resolution (applied at download)</label>
+            <select id="scaleSelect">
+              <option value="1.5">Draft (1.5×) — ~72 dpi</option>
+              <option value="2">Standard (2×) — ~144 dpi</option>
+              <option value="3" selected>High (3×) — ~216 dpi</option>
+              <option value="4">Ultra (4×) — ~288 dpi, print</option>
+              <option value="5">Max (5×) — ~360 dpi</option>
+            </select>
+          </div>
+          <div class="ctrl-row">
+            <label>Format</label>
+            <select id="fmtSelect">
+              <option value="png" selected>PNG — lossless</option>
+              <option value="jpeg">JPG — smaller file</option>
+            </select>
+          </div>
+          <div class="ctrl-row" id="qualRow" style="display:none;">
+            <label>JPG quality</label>
+            <select id="qualSelect">
+              <option value="0.7">70% — smaller</option>
+              <option value="0.85">85%</option>
+              <option value="0.95" selected>95%</option>
+              <option value="1.0">100%</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="res-indicator" id="resIndicator">
+        <div class="res-title">Download resolution</div>
+        <div class="res-value" id="resValue">—</div>
+        <div class="res-note" id="resNote">Re-rendered fresh on each download</div>
+      </div>
+
+      <div class="warn-box" id="warnBox">
+        <i class="ti ti-info-circle" aria-hidden="true"></i>
+        Thumbnails show a preview render. Each download will be re-rendered at your chosen resolution &amp; format.
+      </div>
+
+      <div class="prog-wrap" id="progWrap">
+        <div class="sidebar-label">Rendering</div>
+        <div class="prog-track"><div class="prog-fill" id="progFill"></div></div>
+        <div class="prog-text" id="progText">—</div>
+      </div>
+
+      <div class="sidebar-spacer"></div>
+
+      <button class="dl-all-btn" id="dlAllBtn">
+        <i class="ti ti-download" aria-hidden="true"></i> Download all pages
+      </button>
+
+      <div class="sidebar-footer">
+        Thumbnails are preview quality.<br>
+        Downloads use selected resolution.<br>
+        Click any page to preview.
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="empty-state" id="emptyState">
+        <i class="ti ti-file-type-pdf" aria-hidden="true"></i>
+        <h3>No PDF loaded</h3>
+        <p>Choose a PDF from the sidebar.<br>Set resolution before downloading —<br>each file is rendered fresh at your chosen quality.</p>
+      </div>
+      <div class="pages-grid" id="pagesGrid" style="display:none;"></div>
+    </div>
+  </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <div class="modal-close" id="modalClose">×</div>
+    <img class="modal-img" id="modalImg" src="" alt="Page preview">
+    <div class="modal-info" id="modalInfo"></div>
+  </div>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
-    // initialize PDF.js
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js";
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    // get file input element
-    const fileInput = document.getElementById('fileInput');
+  let pdfDoc = null;
+  let pdfFileName = '';
+  let totalPages = 0;
 
-    // add event listener to file input
-    fileInput.addEventListener('change', function (e) {
-        const file = e.target.files[0];
+  const fileInput    = document.getElementById('fileInput');
+  const scaleSelect  = document.getElementById('scaleSelect');
+  const fmtSelect    = document.getElementById('fmtSelect');
+  const qualSelect   = document.getElementById('qualSelect');
+  const qualRow      = document.getElementById('qualRow');
+  const infoBox      = document.getElementById('infoBox');
+  const infoName     = document.getElementById('infoName');
+  const infoMeta     = document.getElementById('infoMeta');
+  const resIndicator = document.getElementById('resIndicator');
+  const resValue     = document.getElementById('resValue');
+  const resNote      = document.getElementById('resNote');
+  const warnBox      = document.getElementById('warnBox');
+  const progWrap     = document.getElementById('progWrap');
+  const progFill     = document.getElementById('progFill');
+  const progText     = document.getElementById('progText');
+  const pagesGrid    = document.getElementById('pagesGrid');
+  const emptyState   = document.getElementById('emptyState');
+  const dlAllBtn     = document.getElementById('dlAllBtn');
+  const titleBadge   = document.getElementById('titleBadge');
+  const modalOverlay = document.getElementById('modalOverlay');
+  const modalImg     = document.getElementById('modalImg');
+  const modalInfo    = document.getElementById('modalInfo');
+  const modalClose   = document.getElementById('modalClose');
 
- // Extract the original PDF file name without extension
-    const pdfFileName = file.name.replace(/\.[^/.]+$/, "");
+  // ── helpers ──────────────────────────────────────────────────────────────
 
-        // read file with FileReader
-        const reader = new FileReader();
+  function getScale()  { return parseFloat(scaleSelect.value); }
+  function getFmt()    { return fmtSelect.value; }
+  function getQual()   { return parseFloat(qualSelect.value); }
+  function getMime()   { return getFmt() === 'jpeg' ? 'image/jpeg' : 'image/png'; }
+  function getExt()    { return getFmt() === 'jpeg' ? 'jpg' : 'png'; }
 
-        reader.onload = function () {
-            const typedArray = new Uint8Array(this.result);
+  function updateResIndicator() {
+    if (!pdfDoc) return;
+    const s = getScale();
+    const dpi = Math.round(s * 72);
+    const label = scaleSelect.options[scaleSelect.selectedIndex].text;
+    resValue.textContent = `${label} · ~${dpi} DPI`;
+    resIndicator.classList.add('show');
+    warnBox.classList.add('show');
+  }
 
-            // load PDF with PDF.js
-            pdfjsLib.getDocument(typedArray).promise.then(function (pdf) {
-                const numPages = pdf.numPages;
+  // Re-render a single page at full chosen resolution → returns dataUrl
+  async function renderPage(pageNum, scale, mime, qual) {
+    const page     = await pdfDoc.getPage(pageNum);
+    const viewport = page.getViewport({ scale });
+    const canvas   = document.createElement('canvas');
+    canvas.width   = viewport.width;
+    canvas.height  = viewport.height;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, viewport, intent: 'print' }).promise;
+    return { dataUrl: canvas.toDataURL(mime, qual), w: canvas.width, h: canvas.height };
+  }
 
-                // create a container for the pages
-                const pdfPagesContainer = document.getElementById('pdfPages');
+  // ── event listeners ───────────────────────────────────────────────────────
 
-                // create img elements and download buttons for each page
-                for (let i = 1; i <= numPages; i++) {
-                    const pageContainer = document.createElement('div');
-                    pageContainer.className = 'pdf-page-container';
+  fmtSelect.addEventListener('change', () => {
+    qualRow.style.display = getFmt() === 'jpeg' ? 'flex' : 'none';
+    updateResIndicator();
+  });
 
-                    const img = document.createElement('img');
-                    img.className = 'pdf-page';
-                    pageContainer.appendChild(img);
+  scaleSelect.addEventListener('change', updateResIndicator);
 
-                    const downloadButton = document.createElement('button');
-                    downloadButton.textContent = 'Download Page ' + i +'👆';
-                    downloadButton.className = 'btn btn-primary download-btn';
-                    pageContainer.appendChild(downloadButton);
+  modalClose.addEventListener('click',  () => modalOverlay.classList.remove('open'));
+  modalOverlay.addEventListener('click', e => { if (e.target === modalOverlay) modalOverlay.classList.remove('open'); });
 
-                    // append the page container to the main container
-                    pdfPagesContainer.appendChild(pageContainer);
+  // ── download all ──────────────────────────────────────────────────────────
 
-                    // display the page
-                    pdf.getPage(i).then(function (page) {
-                        const viewport = page.getViewport({ scale: 2 });
-                        const canvas = document.createElement('canvas');
-                        const context = canvas.getContext('2d');
-                        canvas.width = viewport.width;
-                        canvas.height = viewport.height;
-                        const renderContext = {
-                            canvasContext: context,
-                            viewport: viewport,
-                        };
+  dlAllBtn.addEventListener('click', async () => {
+    if (!pdfDoc) return;
+    const scale = getScale();
+    const mime  = getMime();
+    const qual  = getQual();
+    const ext   = getExt();
 
-                        page.render(renderContext).promise.then(function () {
-                            img.src = canvas.toDataURL(); // set img source to the canvas data URL
-                        });
-                    });
+    dlAllBtn.disabled = true;
+    dlAllBtn.innerHTML = '<i class="ti ti-loader spinning" aria-hidden="true"></i> Rendering…';
+    progWrap.classList.add('show');
+    progFill.style.width = '0%';
 
-                    // add event listener to the download button
-                    downloadButton.addEventListener('click', function () {
-                        // convert page to image and download
-                        pdf.getPage(i).then(function (page) {
-                            const canvas = document.createElement('canvas');
-                            const viewport = page.getViewport({ scale: 2 }); // You can adjust the scale factor
-                            const ctx = canvas.getContext('2d');
-                            canvas.width = viewport.width;
-                            canvas.height = viewport.height;
-                            const renderContext = {
-                                canvasContext: ctx,
-                                viewport: viewport,
-                            };
+    for (let i = 1; i <= totalPages; i++) {
+      progText.textContent = `Rendering page ${i} of ${totalPages} at ${scaleSelect.options[scaleSelect.selectedIndex].text}…`;
+      const { dataUrl } = await renderPage(i, scale, mime, qual);
+      const a = document.createElement('a');
+      a.download = `${pdfFileName}-Page${i}.${ext}`;
+      a.href = dataUrl;
+      a.click();
+      progFill.style.width = Math.round((i / totalPages) * 100) + '%';
+      await new Promise(r => setTimeout(r, 200));
+    }
 
-                            page.render(renderContext).promise.then(function () {
-                                canvas.toBlob(function (blob) {
-                                    const link = document.createElement('a');
-                                    link.download = pdfFileName+'-' +'Page' + i + '.jpg';
-                                    link.href = URL.createObjectURL(blob);
-                                    link.click();
-                                }, 'image/jpeg');
-                            });
-                        });
-                    });
-                }
-            });
-        };
+    progText.textContent = `All ${totalPages} pages downloaded at ${scaleSelect.options[scaleSelect.selectedIndex].text}`;
+    dlAllBtn.disabled = false;
+    dlAllBtn.innerHTML = '<i class="ti ti-download" aria-hidden="true"></i> Download all pages';
+  });
 
-        reader.readAsArrayBuffer(file);
-    });
+  // ── load PDF ──────────────────────────────────────────────────────────────
+
+  fileInput.addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    pdfFileName = file.name.replace(/\.[^/.]+$/, '');
+    pagesGrid.innerHTML = '';
+    pagesGrid.style.display = 'none';
+    emptyState.style.display = 'flex';
+    dlAllBtn.classList.remove('show');
+    titleBadge.textContent = 'Loading…';
+    infoName.textContent = file.name;
+    infoMeta.textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+    infoBox.classList.add('show');
+    progWrap.classList.add('show');
+    progFill.style.width = '0%';
+    progText.textContent = 'Parsing PDF…';
+
+    const buffer = await file.arrayBuffer();
+    pdfDoc = await pdfjsLib.getDocument({ data: buffer }).promise;
+    totalPages = pdfDoc.numPages;
+
+    infoMeta.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB · ${totalPages} pages`;
+    titleBadge.textContent = `${totalPages} pages loaded`;
+    updateResIndicator();
+
+    emptyState.style.display  = 'none';
+    pagesGrid.style.display   = 'grid';
+
+    // Render PREVIEW thumbnails at low scale (fast) — downloads always re-render
+    const PREVIEW_SCALE = 1.2;
+
+    for (let i = 1; i <= totalPages; i++) {
+      const card = document.createElement('div');
+      card.className = 'page-card';
+
+      const thumbWrap = document.createElement('div');
+      thumbWrap.className = 'page-thumb-wrap';
+
+      const spinner = document.createElement('div');
+      spinner.className = 'page-spinner';
+      spinner.innerHTML = '<i class="ti ti-loader spinning" aria-hidden="true"></i>';
+      thumbWrap.appendChild(spinner);
+
+      const footer = document.createElement('div');
+      footer.className = 'page-footer';
+
+      const num = document.createElement('span');
+      num.className = 'page-num';
+      num.textContent = `Pg ${i}`;
+
+      const dlBtn = document.createElement('button');
+      dlBtn.className = 'dl-btn';
+      dlBtn.innerHTML = '<i class="ti ti-download" aria-hidden="true"></i> Save';
+
+      footer.appendChild(num);
+      footer.appendChild(dlBtn);
+      card.appendChild(thumbWrap);
+      card.appendChild(footer);
+      pagesGrid.appendChild(card);
+
+      // Render preview thumbnail (low res, fast)
+      const pageIdx = i;
+      renderPage(pageIdx, PREVIEW_SCALE, 'image/jpeg', 0.75).then(({ dataUrl }) => {
+        const img = document.createElement('img');
+        img.className = 'page-thumb';
+        img.src = dataUrl;
+        img.alt = `Page ${pageIdx}`;
+        thumbWrap.removeChild(spinner);
+        thumbWrap.appendChild(img);
+      });
+
+      // ── DOWNLOAD BUTTON: re-renders at chosen resolution at click time ──
+      dlBtn.addEventListener('click', async ev => {
+        ev.stopPropagation();
+        const scale = getScale(); // read NOW, not at load time
+        const mime  = getMime();
+        const qual  = getQual();
+        const ext   = getExt();
+        const label = scaleSelect.options[scaleSelect.selectedIndex].text;
+
+        dlBtn.disabled = true;
+        dlBtn.innerHTML = '<i class="ti ti-loader spinning" aria-hidden="true"></i>';
+
+        const { dataUrl, w, h } = await renderPage(pageIdx, scale, mime, qual);
+
+        const a = document.createElement('a');
+        a.download = `${pdfFileName}-Page${pageIdx}-${label.split(' ')[0]}.${ext}`;
+        a.href = dataUrl;
+        a.click();
+
+        dlBtn.disabled = false;
+        dlBtn.innerHTML = '<i class="ti ti-download" aria-hidden="true"></i> Save';
+      });
+
+      // ── CLICK CARD: preview at medium res ──
+      card.addEventListener('click', async () => {
+        modalImg.src = '';
+        modalInfo.textContent = 'Rendering preview…';
+        modalOverlay.classList.add('open');
+        const { dataUrl, w, h } = await renderPage(pageIdx, 2, 'image/jpeg', 0.9);
+        modalImg.src = dataUrl;
+        modalInfo.textContent = `Page ${pageIdx} of ${totalPages} · Preview at 2× (${w}×${h}px) · Download uses selected resolution`;
+      });
+
+      const pct = Math.round((i / totalPages) * 100);
+      progFill.style.width = pct + '%';
+      progText.textContent = `Loaded ${i} of ${totalPages} pages…`;
+    }
+
+    progText.textContent = `${totalPages} pages ready — choose resolution and download`;
+    dlAllBtn.classList.add('show');
+  });
 </script>
 </body>
 </html>
